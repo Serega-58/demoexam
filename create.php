@@ -1,125 +1,181 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id'])) die('Чтобы оставить заявку, надо войти в аккаунт.');
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
 
 $success = false;
 $error = false;
+$error_msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $review = $_POST['review'];
+    $review = trim($_POST['review'] ?? '');
     $date = $_POST['date'];
-    $venue = $_POST['venue'];
+    $curses = $_POST['curses'];
     $payment = $_POST['payment'];
-    $status = 'Новая'; // Статус устанавливается автоматически
     
     include('db.php');
     
-    // Для безопасности в реальном проекте используйте подготовленные выражения (prepared statements)
-    $user_id = (int)$_SESSION['user_id']; // Защита от SQL-инъекций
-    $review = $con->real_escape_string($review);
-    $venue = $con->real_escape_string($venue);
-    $payment = $con->real_escape_string($payment);
+    $user_id = (int)$_SESSION['user_id'];
     
-    $query = $con->query("INSERT INTO request (review, date, curses, payment, user_id, status) 
-                          VALUES ('$review', '$date', '$venue', '$payment', '$user_id', '$status')");
+    $stmt = $con->prepare("INSERT INTO request (user_id, curses, date, payment, review, status) VALUES (?, ?, ?, ?, ?, 'Новая')");
+    $stmt->bind_param("issss", $user_id, $curses, $date, $payment, $review);
     
-    if (!$query) {
-        $error = true;
-        $error_msg = 'Ошибка: ' . $con->error;
-    } else {
+    if ($stmt->execute()) {
         $success = true;
+    } else {
+        $error = true;
+        $error_msg = 'Ошибка при создании заявки';
     }
+    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Создание заявки - Банкетам.Нет</title>
-    <!-- Подключение шрифта Oswald -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Новая заявка - Банкетам.Нет</title>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Oswald', sans-serif;
+            background: #fffdd0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 550px;
+            margin: 0 auto;
+            background: #FFFDD0;
+            padding: 35px;
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        }
+        h1 { text-align: center; color: #006400; margin-bottom: 25px; font-size: 28px; }
+        .nav-buttons { display: flex; gap: 15px; margin-bottom: 25px; }
+        .btn-nav {
+            flex: 1;
+            padding: 12px;
+            background: #DAA520;
+            color: #FFFDD0;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .btn-nav:hover { background: #006400; }
+        .success-message {
+            background: #DAA520;
+            color: #FFFDD0;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .error-message {
+            background: #DC143C;
+            color: #FFFDD0;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #006400;
+        }
+        .form-group select, .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #FFDAB9;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: 'Oswald', sans-serif;
+            background: #FFFDD0;
+        }
+        .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #DAA520;
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: #DAA520;
+            color: #FFFDD0;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-submit:hover { background: #006400; }
+        @media (max-width: 550px) { .container { padding: 20px; } .nav-buttons { flex-direction: column; } }
+    </style>
 </head>
 <body>
     <div class="container">
-        <!-- Кнопки навигации -->
         <div class="nav-buttons">
             <a href="index.php" class="btn-nav">🏠 Главная</a>
             <a href="history.php" class="btn-nav">📋 Мои заявки</a>
         </div>
         
         <h1>🎉 Бронирование площадки</h1>
-
+        
         <?php if ($success): ?>
             <div class="success-message">
-                ✅ Заявка успешно отправлена!<br><br>
-                <a href="history.php">📋 Перейти к истории моих заявок →</a>
-                <br><br>
-                🍽️ Спасибо, что выбрали нас! Мы свяжемся с вами в ближайшее время.
+                ✅ Заявка успешно отправлена!<br>
+                <a href="history.php" style="color: #FFFDD0;">📋 Перейти к истории заявок</a>
             </div>
         <?php elseif ($error): ?>
-            <div class="error-message">
-                ❌ Ошибка при отправке заявки: <?php echo htmlspecialchars($error_msg); ?><br>
-                <a href="javascript:history.back()">◀ Попробовать снова</a>
-            </div>
+            <div class="error-message">❌ <?php echo $error_msg; ?></div>
         <?php endif; ?>
-
+        
         <?php if (!$success): ?>
-        <form method="POST" action="" id="requestForm">
+        <form method="POST">
+            <div class="form-group">
+                <label>🍽️ Выберите помещение</label>
+                <select name="curses" required>
+                    <option value="">-- Выберите --</option>
+                    <option value="Банкетный зал">🏛️ Банкетный зал</option>
+                    <option value="Ресторан">🍷 Ресторан</option>
+                    <option value="Летняя веранда">🌞 Летняя веранда</option>
+                    <option value="Закрытая веранда">🏠 Закрытая веранда</option>
+                </select>
+            </div>
             
-            <label for="venue">🍽️ Выберите тип помещения</label>
-            <select id="venue" name="venue" required>
-                <option value="Банкетный зал">🏛️ Банкетный зал</option>
-                <option value="Ресторан">🍷 Ресторан</option>
-                <option value="Летняя веранда">🌞 Летняя веранда</option>
-                <option value="Закрытая веранда">🏠 Закрытая веранда</option>
-            </select>
-
-            <label for="date">📅 Дата и время проведения банкета</label>
-            <input id="date" type="datetime-local" name="date" required>
-
-            <label for="payment">💳 Способ оплаты</label>
-            <select id="payment" name="payment" required>
-                <option value="наличные">💵 Наличные</option>
-                <option value="перевод">🏦 Переводом по номеру</option>
-                <option value="карта">💳 Банковской картой</option>
-            </select>
-
-            <label for="review">📝 Дополнительные пожелания</label>
-            <textarea id="review" name="review" placeholder="Опишите особые пожелания: меню, декор, музыкальное сопровождение и т.д..."></textarea>
-             
-            <button type="submit" id="submitBtn">🎉 Забронировать</button>
+            <div class="form-group">
+                <label>📅 Дата и время начала банкета</label>
+                <input type="datetime-local" name="date" required>
+            </div>
+            
+            <div class="form-group">
+                <label>💳 Способ оплаты</label>
+                <select name="payment" required>
+                    <option value="">-- Выберите --</option>
+                    <option value="Наличные">💵 Наличные</option>
+                    <option value="Карта">💳 Банковская карта</option>
+                    <option value="Перевод">🌐 Онлайн-перевод</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>📝 Дополнительные пожелания</label>
+                <textarea name="review" placeholder="Опишите особые пожелания: меню, декор, музыка..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn-submit">🎉 Забронировать</button>
         </form>
         <?php endif; ?>
     </div>
-
-    <script>
-        // Анимация при отправке формы
-        const form = document.getElementById('requestForm');
-        const submitBtn = document.getElementById('submitBtn');
-        
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                // Добавляем класс загрузки на кнопку
-                submitBtn.classList.add('loading');
-                submitBtn.textContent = 'Отправка';
-            });
-        }
-
-        // Анимация при фокусе на полях
-        const inputs = document.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                this.style.transition = 'all 0.3s ease';
-            });
-            
-            input.addEventListener('blur', function() {
-                if (!this.value) {
-                    this.style.transform = 'scale(1)';
-                }
-            });
-        });
-    </script>
 </body>
 </html>

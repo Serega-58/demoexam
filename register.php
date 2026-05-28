@@ -1,13 +1,8 @@
 <?php
 session_start();
 
-// Если пользователь уже авторизован, перенаправляем
 if (isset($_SESSION['user_id'])) {
-    if (isset($_SESSION['admin']) && $_SESSION['admin']) {
-        header('Location: admin.php');
-    } else {
-        header('Location: create.php');
-    }
+    header('Location: index.php');
     exit;
 }
 
@@ -25,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     $form_data = compact('login', 'fullname', 'phone', 'email');
     
-    // Валидация данных
     $errors = [];
     
     if (empty($login)) {
@@ -42,14 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if (empty($fullname)) {
         $errors[] = 'ФИО обязательно для заполнения';
-    } elseif (strlen($fullname) < 5) {
-        $errors[] = 'Введите полное ФИО';
     }
     
     if (empty($phone)) {
         $errors[] = 'Телефон обязателен для заполнения';
-    } elseif (!preg_match('/^\+7\(\d{3}\)\d{3}-\d{2}-\d{2}$/', $phone)) {
-        $errors[] = 'Телефон должен быть в формате +7(XXX)XXX-XX-XX';
     }
     
     if (empty($email)) {
@@ -61,7 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (empty($errors)) {
         include('db.php');
         
-        // Проверка на существование логина
         $stmt = $con->prepare("SELECT id FROM users WHERE login = ?");
         $stmt->bind_param("s", $login);
         $stmt->execute();
@@ -71,7 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = true;
             $error_message = 'Пользователь с таким логином уже существует';
         } else {
-            // Проверка на существование email
             $stmt = $con->prepare("SELECT id FROM users WHERE email = ?");
             $stmt->bind_param("s", $email);
             $stmt->execute();
@@ -81,20 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $error = true;
                 $error_message = 'Пользователь с таким email уже существует';
             } else {
-                // Рекомендуется хешировать пароль
-                // $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                // Для совместимости с существующей системой пока оставляем как есть
-                
-                $stmt = $con->prepare("INSERT INTO users (login, password, fullname, phone, email) VALUES (?, ?, ?, ?, ?)");
+                $stmt = $con->prepare("INSERT INTO users (login, password, fullname, phone, email, is_admin) VALUES (?, ?, ?, ?, ?, 0)");
                 $stmt->bind_param("sssss", $login, $password, $fullname, $phone, $email);
                 
                 if ($stmt->execute()) {
                     $success = true;
-                    // Перенаправление через 2 секунды
                     header('refresh:2;url=login.php');
                 } else {
                     $error = true;
-                    $error_message = 'Ошибка при регистрации: ' . $con->error;
+                    $error_message = 'Ошибка при регистрации';
                 }
                 $stmt->close();
             }
@@ -110,264 +93,138 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Регистрация - Банкетам.Нет</title>
-    <!-- Подключение шрифта Oswald -->
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Oswald', sans-serif;
+            background: #fffdd0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #FFFDD0;
+            padding: 35px;
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        }
+        .logo { text-align: center; margin-bottom: 25px; }
+        .logo h1 {
+            font-size: 32px;
+            color: #DAA520;
+        }
+        .form-header { text-align: center; margin-bottom: 25px; }
+        .form-header h2 { color: #006400; font-size: 24px; }
+        .error-message {
+            background: #DC143C;
+            color: #FFFDD0;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .success-message {
+            background: #DAA520;
+            color: #FFFDD0;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #006400;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #FFDAB9;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: 'Oswald', sans-serif;
+            background: #FFFDD0;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #DAA520;
+        }
+        .hint {
+            font-size: 11px;
+            color: #006400;
+            margin-top: 4px;
+            display: block;
+        }
+        .btn-register {
+            width: 100%;
+            padding: 14px;
+            background: #DAA520;
+            color: #FFFDD0;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-register:hover { background: #006400; }
+        .form-footer { text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #FFDAB9; }
+        .login-link { color: #DAA520; text-decoration: none; }
+        .back-home { color: #006400; text-decoration: none; font-size: 14px; display: inline-block; margin-top: 10px; }
+        @media (max-width: 550px) { .container { padding: 20px; } .logo h1 { font-size: 26px; } }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">
-            <h1>Банкетам.Нет</h1>
-            <p>Выбор помещения для банкета</p>
-        </div>
-
-        <div class="form-header">
-            <h2>Создание аккаунта</h2>
-            <p>Заполните форму для регистрации</p>
-        </div>
-
+        <div class="logo"><h1>🍽️ Банкетам.Нет</h1></div>
+        <div class="form-header"><h2>Регистрация</h2></div>
+        
         <?php if ($error): ?>
-            <div class="error-message">
-                ⚠️ <?php echo $error_message; ?>
-            </div>
+            <div class="error-message">⚠️ <?php echo $error_message; ?></div>
         <?php endif; ?>
-
+        
         <?php if ($success): ?>
-            <div class="success-message">
-                ✅ Регистрация успешно завершена!<br>
-                <small>Перенаправление на страницу входа...</small>
-            </div>
+            <div class="success-message">✅ Регистрация успешна! Перенаправление...</div>
         <?php endif; ?>
-
+        
         <?php if (!$success): ?>
-        <form method="POST" action="" id="registerForm">
+        <form method="POST">
             <div class="form-group">
-                <label for="fullname">
-                    <span>👤</span> ФИО
-                </label>
-                <input type="text" id="fullname" name="fullname" 
-                       value="<?php echo htmlspecialchars($form_data['fullname'] ?? ''); ?>"
-                       placeholder="Иванов Иван Иванович" required>
-                <span class="hint">Ваше полное имя</span>
+                <label>👤 ФИО</label>
+                <input type="text" name="fullname" value="<?php echo htmlspecialchars($form_data['fullname'] ?? ''); ?>" required>
             </div>
-
             <div class="form-group">
-                <label for="phone">
-                    <span>📱</span> Телефон
-                </label>
-                <input type="tel" id="phone" name="phone" 
-                       value="<?php echo htmlspecialchars($form_data['phone'] ?? ''); ?>"
-                       placeholder="+7(XXX)XXX-XX-XX" 
-                       pattern="\+7\(\d{3}\)\d{3}-\d{2}-\d{2}" required>
+                <label>📱 Телефон</label>
+                <input type="tel" name="phone" placeholder="+7(XXX)XXX-XX-XX" value="<?php echo htmlspecialchars($form_data['phone'] ?? ''); ?>" required>
                 <span class="hint">Формат: +7(XXX)XXX-XX-XX</span>
             </div>
-
             <div class="form-group">
-                <label for="email">
-                    <span>📧</span> Email
-                </label>
-                <input type="email" id="email" name="email" 
-                       value="<?php echo htmlspecialchars($form_data['email'] ?? ''); ?>"
-                       placeholder="example@mail.com" required>
-                <span class="hint">На этот адрес будут приходить уведомления</span>
+                <label>📧 Email</label>
+                <input type="email" name="email" value="<?php echo htmlspecialchars($form_data['email'] ?? ''); ?>" required>
             </div>
-
             <div class="form-group">
-                <label for="login">
-                    <span>🔑</span> Логин
-                </label>
-                <input type="text" id="login" name="login" 
-                       value="<?php echo htmlspecialchars($form_data['login'] ?? ''); ?>"
-                       placeholder="ivan123" 
-                       pattern="[a-zA-Z0-9]{6,}" required>
-                <span class="hint">Только латиница и цифры, минимум 6 символов</span>
+                <label>🔑 Логин (латиница+цифры, ≥6 символов)</label>
+                <input type="text" name="login" value="<?php echo htmlspecialchars($form_data['login'] ?? ''); ?>" pattern="[a-zA-Z0-9]{6,}" required>
             </div>
-
             <div class="form-group">
-                <label for="password">
-                    <span>🔒</span> Пароль
-                </label>
-                <input type="password" id="password" name="password" 
-                       placeholder="Минимум 8 символов" minlength="8" required>
-                <span class="hint" id="passwordHint">Минимум 8 символов</span>
+                <label>🔒 Пароль (≥8 символов)</label>
+                <input type="password" name="password" minlength="8" required>
             </div>
-
-            <div class="form-group">
-                <label for="confirm_password">
-                    <span>✅</span> Подтверждение пароля
-                </label>
-                <input type="password" id="confirm_password" name="confirm_password" 
-                       placeholder="Повторите пароль" required>
-                <span class="hint" id="confirmHint"></span>
-            </div>
-
-            <button type="submit" class="btn-register" id="submitBtn">
-                🎉 Зарегистрироваться
-            </button>
+            <button type="submit" class="btn-register">🎉 Зарегистрироваться</button>
         </form>
         <?php endif; ?>
-
+        
         <div class="form-footer">
             <p>Уже есть аккаунт? <a href="login.php" class="login-link">Войти →</a></p>
-            <a href="index.php" class="back-home">← Вернуться на главную</a>
+            <a href="index.php" class="back-home">← На главную</a>
         </div>
     </div>
-
-    <script>
-        // Клиентская валидация
-        const form = document.getElementById('registerForm');
-        const password = document.getElementById('password');
-        const confirmPassword = document.getElementById('confirm_password');
-        const confirmHint = document.getElementById('confirmHint');
-        const passwordHint = document.getElementById('passwordHint');
-        const submitBtn = document.getElementById('submitBtn');
-        
-        // Проверка пароля в реальном времени
-        if (password) {
-            password.addEventListener('input', function() {
-                const value = this.value;
-                if (value.length >= 8) {
-                    passwordHint.innerHTML = '✅ Пароль надежный';
-                    passwordHint.style.color = '#006400';
-                } else {
-                    passwordHint.innerHTML = '⚠️ Минимум 8 символов';
-                    passwordHint.style.color = '#DC143C';
-                }
-                
-                if (confirmPassword.value) {
-                    checkPasswordsMatch();
-                }
-            });
-        }
-        
-        // Проверка совпадения паролей
-        function checkPasswordsMatch() {
-            if (password.value === confirmPassword.value && password.value.length >= 8) {
-                confirmHint.innerHTML = '✅ Пароли совпадают';
-                confirmHint.style.color = '#006400';
-                return true;
-            } else if (confirmPassword.value.length > 0) {
-                confirmHint.innerHTML = '❌ Пароли не совпадают';
-                confirmHint.style.color = '#DC143C';
-                return false;
-            }
-            return false;
-        }
-        
-        if (confirmPassword) {
-            confirmPassword.addEventListener('input', checkPasswordsMatch);
-        }
-        
-        // Валидация телефона
-        const phone = document.getElementById('phone');
-        if (phone) {
-            phone.addEventListener('input', function(e) {
-                let value = this.value;
-                // Автоматическое форматирование
-                if (value.length === 1 && value !== '+') {
-                    this.value = '+' + value;
-                }
-            });
-        }
-        
-        // Валидация перед отправкой
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                // Проверка паролей
-                if (password.value !== confirmPassword.value) {
-                    e.preventDefault();
-                    showInlineError('Пароли не совпадают');
-                    confirmPassword.style.borderColor = '#DC143C';
-                    return false;
-                }
-                
-                if (password.value.length < 8) {
-                    e.preventDefault();
-                    showInlineError('Пароль должен содержать минимум 8 символов');
-                    password.style.borderColor = '#DC143C';
-                    return false;
-                }
-                
-                // Проверка телефона
-                const phonePattern = /^\+7\(\d{3}\)\d{3}-\d{2}-\d{2}$/;
-                if (!phonePattern.test(phone.value)) {
-                    e.preventDefault();
-                    showInlineError('Введите телефон в формате +7(XXX)XXX-XX-XX');
-                    phone.style.borderColor = '#DC143C';
-                    return false;
-                }
-                
-                // Проверка логина
-                const loginPattern = /^[a-zA-Z0-9]{6,}$/;
-                const login = document.getElementById('login');
-                if (!loginPattern.test(login.value)) {
-                    e.preventDefault();
-                    showInlineError('Логин должен содержать только латиницу и цифры, минимум 6 символов');
-                    login.style.borderColor = '#DC143C';
-                    return false;
-                }
-                
-                // Анимация кнопки
-                submitBtn.innerHTML = '⏳ Регистрация...';
-                submitBtn.disabled = true;
-            });
-        }
-        
-        // Функция показа ошибки
-        function showInlineError(message) {
-            const existingError = document.querySelector('.error-message');
-            if (existingError) {
-                existingError.remove();
-            }
-            
-            const formHeader = document.querySelector('.form-header');
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            errorDiv.innerHTML = `⚠️ ${message}`;
-            formHeader.insertAdjacentElement('afterend', errorDiv);
-            
-            // Убираем ошибку через 3 секунды
-            setTimeout(() => {
-                errorDiv.style.opacity = '0';
-                setTimeout(() => errorDiv.remove(), 300);
-            }, 3000);
-        }
-        
-        // Убираем красную рамку при вводе
-        const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.addEventListener('input', function() {
-                this.style.borderColor = '#FFDAB9';
-            });
-            
-            input.addEventListener('focus', function() {
-                this.parentElement.style.transform = 'translateX(5px)';
-            });
-            
-            input.addEventListener('blur', function() {
-                this.parentElement.style.transform = 'translateX(0)';
-            });
-        });
-        
-        // Создание анимированных кругов на фоне
-        function createCircles() {
-            for (let i = 0; i < 10; i++) {
-                const circle = document.createElement('div');
-                circle.className = 'circle';
-                const size = Math.random() * 100 + 50;
-                circle.style.width = size + 'px';
-                circle.style.height = size + 'px';
-                circle.style.left = Math.random() * 100 + '%';
-                circle.style.bottom = '-' + size + 'px';
-                circle.style.animationDuration = Math.random() * 15 + 10 + 's';
-                circle.style.animationDelay = Math.random() * 5 + 's';
-                document.body.appendChild(circle);
-            }
-        }
-        
-        createCircles();
-    </script>
 </body>
 </html>
