@@ -58,7 +58,7 @@ if (isset($_GET['logout'])) {
       text-decoration: none;
       transition: all 0.3s ease;
       font-weight: 500;
-      background: #FFFDD0;
+      background: # ;
     }
     .nav-buttons a:hover {
       background-color: #DAA520;
@@ -178,6 +178,21 @@ if (isset($_GET['logout'])) {
     </div>
   </div>
 </header>
+
+<div class="slideshow-container">
+  <div class="mySlides fade"><img src="photo/1.jpg" alt="Банкетный зал"><div class="text">🏛️ Просторный банкетный зал</div></div>
+  <div class="mySlides fade"><img src="photo/2.jpg" alt="Ресторан"><div class="text">🍷 Изысканный ресторан</div></div>
+  <div class="mySlides fade"><img src="photo/3.jpg" alt="Летняя веранда"><div class="text">🌞 Уютная летняя веранда</div></div>
+  <div class="mySlides fade"><img src="photo/4.jpg" alt="Закрытая веранда"><div class="text">🏠 Тёплая закрытая веранда</div></div>
+  <a class="prev" onclick="plusSlides(-1)">❮</a>
+  <a class="next" onclick="plusSlides(1)">❯</a>
+</div>
+<div class="dot-container">
+  <span class="dot" onclick="currentSlide(1)"></span>
+  <span class="dot" onclick="currentSlide(2)"></span>
+  <span class="dot" onclick="currentSlide(3)"></span>
+  <span class="dot" onclick="currentSlide(4)"></span>
+</div>
 
 <section class="features-section">
   <h2 class="features-title">✨ Почему выбирают «Банкетам.Нет»?</h2>
